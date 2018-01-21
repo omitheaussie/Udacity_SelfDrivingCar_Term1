@@ -24,9 +24,9 @@ image to step 1:
 
 1.  The weighted sum image is then converted to gray scale (single channel).
 
-    ![](media/609feaaaef580cb3a359ab2b56bc7551.png)
+![](media/609feaaaef580cb3a359ab2b56bc7551.png)
 
-2.  The gray scale image is blurred using a Gaussian Kernel of size 5 in order
+1.  The gray scale image is blurred using a Gaussian Kernel of size 5 in order
     to remove noise.
 
 ![](media/cfb4adcb11e9ebef8b3996e32a6db5ce.png)
@@ -52,7 +52,7 @@ image to step 1:
         the left and right side lane markings. The details of line drawing is
         explained later.
 
-### [./media/image7.png](./media/image7.png)
+![](media/cd1f08bb081dda8ae2fde15b66788ed4.png)
 
 1.  The line drawn image mask is overlayed on top of the original image that was
     fed to step 1.
