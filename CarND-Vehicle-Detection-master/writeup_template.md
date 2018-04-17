@@ -1,127 +1,169 @@
-## Writeup Template
-
-### You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
-
----
-
-**Advanced Lane Finding Project**
+**Vehicle Detection Project**
 
 The goals / steps of this project are the following:
 
-* Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-* Apply a distortion correction to raw images.
-* Use color transforms, gradients, etc., to create a thresholded binary image.
-* Apply a perspective transform to rectify binary image ("birds-eye view").
-* Detect lane pixels and fit to find the lane boundary.
-* Determine the curvature of the lane and vehicle position with respect to center.
-* Warp the detected lane boundaries back onto the original image.
-* Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
+-   Perform a Histogram of Oriented Gradients (HOG) feature extraction on a
+    labeled training set of images and train a classifier Linear SVM classifier
 
-[//]: # (Image References)
+-   Optionally, you can also apply a color transform and append binned color
+    features, as well as histograms of color, to your HOG feature vector.
 
-[image1]: ./examples/undistort_output.png "Undistorted"
-[image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
-[video1]: ./project_video.mp4 "Video"
+-   Note: for those first two steps don't forget to normalize your features and
+    randomize a selection for training and testing.
 
-## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
+-   Implement a sliding-window technique and use your trained classifier to
+    search for vehicles in images.
 
-### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
+-   Run your pipeline on a video stream (start with the test_video.mp4 and later
+    implement on full project_video.mp4) and create a heat map of recurring
+    detections frame by frame to reject outliers and follow detected vehicles.
 
----
+-   Estimate a bounding box for vehicles detected.
 
-### Writeup / README
+Rubric Points
+-------------
 
-#### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
+### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.
 
-You're reading it!
+### Video Implementation
 
-### Camera Calibration
+#### 1. Provide a link to your final video output. Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
 
-#### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
+Here's a [link to my video result](./project_video.mp4):
 
-The code for this step is contained in the first code cell of the IPython notebook located in "./examples/example.ipynb" (or in lines # through # of the file called `some_file.py`).  
+<https://youtu.be/D4QSVajtDyc>
 
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
+1.  Describe how (and identify where in your code) you implemented some kind of
+    filter for false positives and some method for combining overlapping
+    bounding boxes.
 
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
+![](media/5c30c66caac1b4c4493b82ccbe33ca9b.png)
 
-![alt text][image1]
+The code shown above is where I take a recent list of hot windows that have been
+estimated based on sliding window search and a trained classifier. Steps to
+eliminate false positives and multiple overlapping bounding boxes are:
 
-### Pipeline (single images)
+1.  Apply a threshold to the current hot window list
 
-#### 1. Provide an example of a distortion-corrected image.
+2.  Add the current set of hot windows to a list
 
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
-![alt text][image2]
+3.  I chose to smooth out the multiple windows based on 5 previous frames. This
+    is done with a heat_smooth_factor (0.5) as shown above.
 
-#### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
+4.  After smoothing the window position, I apply the threshold to eliminate the
+    overlapping and false positive windows.
 
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+5.  The windows are then drawn on the image with draw_labeled_bboxes.
 
-![alt text][image3]
+Below are the heatmaps achieved with my classifier
 
-#### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
+![](media/aa53031f4c24f958633e96cd199bdea1.png)
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+Below are the bounding boxes drawn based on the heatmap and label function:
 
-```python
-src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
-dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
-```
+![](media/08eca5a6d4bee738bfdbd1f6ddd194d6.png)
 
-This resulted in the following source and destination points:
+### HOG (Histogram of Oriented Gradients):
 
-| Source        | Destination   | 
-|:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+My get_hog_features is implemented in Functions.py line 50 to 63. During
+training, hog features are extracted using extract_features function lines 91 to
+100 in functions.py. During video pipeline process, find_cars calls
+get_hog_features directly to extract hog features once before subsampling them
+as per sliding window function coordinates.
 
-I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+-   To start of with, I tested various LinearSVC and SVC with rbf trainings
+    using only 1 channel fed to the HOG feature extractor function hog.sdf
 
-![alt text][image4]
+    -   When I trialed only channel 0, I got very sketchy performance with
+        actual vehicle detection.
 
-#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
+    -   With 2 channels, I got only \~50% of the detections correct.
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+-   Based on all the discussion on slack and my own tests, only feeding all the
+    channels to extract hog features gave me above 99% test accuracy during
+    training.
 
-![alt text][image5]
+-   I also tested using orientations setting of 9, 12 and 32.
 
-#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+    -   For all orient settings there was no substantial improvement in the test
+        accuracy.
 
-I did this in lines # through # in my code in `my_other_file.py`
+    -   But during video pipeline runs, orient of 9 missed out detecting the
+        black car (in combination with using only 1 channel for hog) that comes
+        into the frame. And as I increased the orient alone while sticking with
+        single channel, the accuracy of recognizing the black car improved but
+        not entirely.
 
-#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+    -   Eventually in combination with feeding all the channels to hog, orient
+        of 32 proved to be the most reliable for video pipeline.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+-   I did not test a lot of variations of pix_per_cell and cell_per_block.
+    Initially all my testing was done at pix_per_cell of 8. The video processing
+    time for this was 11 minutes with finding_cars function. When the
+    pix_per_cell was upped to 16, the time to process video was 4min 30 sec. But
+    the difference in quality of vehicle detection was not substantial. I
+    settled on pix_per_cell of 16. This variable has direct impact on the
+    nxblocks and nyblocks variables (I tried this in the excel sheet first to
+    gauge impact – the extract from the sheet is shown in the sliding window
+    section).
 
-![alt text][image6]
+    -   I left cell_per_block at 2 for overlap of 75% while sliding windows
+        across the image.
 
----
+### Sliding Window:
 
-### Pipeline (video)
+This is where I spent a lot of time. I initially wanted to see how fast the
+video pipeline will be if I implemented the slide_window and search_window
+algorithms where the hog features are extracted for each image snippet. The code
+for this is now included in the submission. Here is an extract:
 
-#### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
+![](media/f92b4dcc73d2570d048b98f00650856d.png)
 
-Here's a [link to my video result](./project_video.mp4)
+The video processed with this method is pretty much the same as what I got from
+my final find_cars function but took almost 1hr 30 minutes to process!!!
 
----
+In this method as can be seen, I am getting a list of windows for sections of
+the images shown below in an excel chart I made:
+
+![](media/a53a0e19f26bbf1db736a7f3bfa8f927.png)
+
+This was done to work out exact dimensions of the image to be fed to the
+slide_window function. This excel sheet provided with all the required ystart,
+ystop and xstart, xstop variable values along with a visualization of which
+sections of the image are being used for feature extraction. The window list
+extracted from this is fed to the search_window to obtain the hot_window list
+which is then processed for rejecting false positives and duplicate detections
+using the label function.
 
 ### Discussion
 
-#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
+#### 1. Briefly discuss any problems / issues you faced in your implementation of this project. Where will your pipeline likely fail? What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+Mostly time was spent trying to improve the efficiency of the algorithm to speed
+up the pipeline. Initially the same result took about 1.5 hrs. using the sliding
+window and search_window functions! The efficiency was improved by using the
+find_cars function where the HOG features are extracted beforehand for the whole
+image and later subsampled while prediction is being done.
+
+Another substantial problem was whether to use the YCrCb or RGB/BGR color
+spaces. Both the color spaces have their pluses and minuses. Eventually based on
+many hrs spent training and retraining, I decided to go with YCrCb although BGR
+color space was a very close second.
+
+I also tested SVC with rbf and Linear SVC classifiers. The SVC takes a lot
+longer to process the image as compared to the LinearSVC. I settled on LinearSVC
+for speed and efficiency despite of slightly lower test accuracy.
+
+![](media/06dd9d12e9480253c966d878e54496ab.png)
+
+These pickle dumps are from various permutations and combinations I trialed.
+
+I also tested some variations of smoothing out the hot windows before settling
+on the implementation as given in the Video pipeline.
+
+Eventually, after I had completed the vehicle detection portion, I fed the video
+to my previous project for lane detection. The link shared above is the result
+of this.
+
+My next task is to use the LeNet neural network to train the model and see how
+that performs as compared to LinearSVC.
